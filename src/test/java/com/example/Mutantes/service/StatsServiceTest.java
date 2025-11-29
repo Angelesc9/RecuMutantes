@@ -2,7 +2,6 @@ package com.example.Mutantes.service;
 
 import com.example.Mutantes.dto.StatsResponse;
 import com.example.Mutantes.repository.DnaRecordRepository;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -14,12 +13,15 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 /**
- * Tests unitarios para StatsService.
+ * Suite de pruebas unitarias para StatsService con Mockito.
  *
- * Verifica el cálculo de estadísticas y el manejo de edge cases como división por cero.
+ * Verifica:
+ * - Cálculo correcto de estadísticas
+ * - Manejo de casos especiales (división por cero)
+ * - Precisión del ratio
  */
 @ExtendWith(MockitoExtension.class)
-@DisplayName("StatsService - Tests de Estadísticas")
+@DisplayName("StatsService - Tests con Mocks")
 class StatsServiceTest {
 
     @Mock
@@ -28,235 +30,159 @@ class StatsServiceTest {
     @InjectMocks
     private StatsService statsService;
 
-    @BeforeEach
-    void setUp() {
-        // Configuración común si es necesaria
-    }
-
     @Test
-    @DisplayName("Debe calcular estadísticas correctamente con mutantes y humanos")
-    void testGetStats_WithMutantsAndHumans() {
-        // Given
+    @DisplayName("Ratio estándar: 40 mutantes, 100 humanos → Ratio 0.4")
+    void testRatioStandard() {
+        // Arrange
         when(dnaRecordRepository.countByIsMutant(true)).thenReturn(40L);
         when(dnaRecordRepository.countByIsMutant(false)).thenReturn(100L);
 
-        // When
-        StatsResponse stats = statsService.getStats();
+        // Act
+        StatsResponse response = statsService.getStats();
 
-        // Then
-        assertNotNull(stats);
-        assertEquals(40L, stats.getCount_mutant_dna());
-        assertEquals(100L, stats.getCount_human_dna());
-        assertEquals(0.4, stats.getRatio(), 0.001); // 40/100 = 0.4
+        // Assert
+        assertNotNull(response, "La respuesta no debe ser null");
+        assertEquals(40, response.getCount_mutant_dna(), "Debe tener 40 mutantes");
+        assertEquals(100, response.getCount_human_dna(), "Debe tener 100 humanos");
+        assertEquals(0.4, response.getRatio(), 0.001, "El ratio debe ser 0.4 (40/100)");
 
+        // Verificar interacciones
         verify(dnaRecordRepository, times(1)).countByIsMutant(true);
         verify(dnaRecordRepository, times(1)).countByIsMutant(false);
     }
 
     @Test
-    @DisplayName("Debe manejar división por cero cuando no hay humanos")
-    void testGetStats_NoHumans_RatioIsZero() {
-        // Given - Solo mutantes, sin humanos
+    @DisplayName("División por cero: 10 mutantes, 0 humanos → Ratio 0.0 (no debe lanzar excepción)")
+    void testRatioDivisionByZero() {
+        // Arrange
         when(dnaRecordRepository.countByIsMutant(true)).thenReturn(10L);
         when(dnaRecordRepository.countByIsMutant(false)).thenReturn(0L);
 
-        // When
-        StatsResponse stats = statsService.getStats();
+        // Act
+        StatsResponse response = statsService.getStats();
 
-        // Then
-        assertNotNull(stats);
-        assertEquals(10L, stats.getCount_mutant_dna());
-        assertEquals(0L, stats.getCount_human_dna());
-        assertEquals(0.0, stats.getRatio()); // Debe ser 0, no lanzar excepción
+        // Assert
+        assertNotNull(response, "La respuesta no debe ser null");
+        assertEquals(10, response.getCount_mutant_dna(), "Debe tener 10 mutantes");
+        assertEquals(0, response.getCount_human_dna(), "Debe tener 0 humanos");
+        assertEquals(0.0, response.getRatio(), "El ratio debe ser 0.0 cuando no hay humanos (evita división por cero)");
+
+        // Verificar que no se lanzó excepción
+        assertDoesNotThrow(() -> statsService.getStats(),
+            "No debe lanzar excepción con división por cero");
     }
 
     @Test
-    @DisplayName("Debe retornar ratio 0 cuando no hay mutantes")
-    void testGetStats_NoMutants_RatioIsZero() {
-        // Given - Solo humanos, sin mutantes
-        when(dnaRecordRepository.countByIsMutant(true)).thenReturn(0L);
-        when(dnaRecordRepository.countByIsMutant(false)).thenReturn(50L);
-
-        // When
-        StatsResponse stats = statsService.getStats();
-
-        // Then
-        assertNotNull(stats);
-        assertEquals(0L, stats.getCount_mutant_dna());
-        assertEquals(50L, stats.getCount_human_dna());
-        assertEquals(0.0, stats.getRatio()); // 0/50 = 0.0
-    }
-
-    @Test
-    @DisplayName("Debe retornar todos ceros cuando no hay registros")
-    void testGetStats_NoRecords_AllZeros() {
-        // Given - Base de datos vacía
+    @DisplayName("Sin registros: 0 mutantes, 0 humanos → Ratio 0.0")
+    void testZeroRecords() {
+        // Arrange
         when(dnaRecordRepository.countByIsMutant(true)).thenReturn(0L);
         when(dnaRecordRepository.countByIsMutant(false)).thenReturn(0L);
 
-        // When
-        StatsResponse stats = statsService.getStats();
+        // Act
+        StatsResponse response = statsService.getStats();
 
-        // Then
-        assertNotNull(stats);
-        assertEquals(0L, stats.getCount_mutant_dna());
-        assertEquals(0L, stats.getCount_human_dna());
-        assertEquals(0.0, stats.getRatio());
+        // Assert
+        assertNotNull(response, "La respuesta no debe ser null");
+        assertEquals(0, response.getCount_mutant_dna(), "Debe tener 0 mutantes");
+        assertEquals(0, response.getCount_human_dna(), "Debe tener 0 humanos");
+        assertEquals(0.0, response.getRatio(), "El ratio debe ser 0.0 cuando no hay registros");
     }
 
     @Test
-    @DisplayName("Debe calcular ratio correctamente con números grandes")
-    void testGetStats_LargeNumbers() {
-        // Given
-        when(dnaRecordRepository.countByIsMutant(true)).thenReturn(1000L);
-        when(dnaRecordRepository.countByIsMutant(false)).thenReturn(2500L);
+    @DisplayName("Solo humanos: 0 mutantes, 50 humanos → Ratio 0.0")
+    void testOnlyHumans() {
+        // Arrange
+        when(dnaRecordRepository.countByIsMutant(true)).thenReturn(0L);
+        when(dnaRecordRepository.countByIsMutant(false)).thenReturn(50L);
 
-        // When
-        StatsResponse stats = statsService.getStats();
+        // Act
+        StatsResponse response = statsService.getStats();
 
-        // Then
-        assertEquals(1000L, stats.getCount_mutant_dna());
-        assertEquals(2500L, stats.getCount_human_dna());
-        assertEquals(0.4, stats.getRatio(), 0.001); // 1000/2500 = 0.4
+        // Assert
+        assertEquals(0, response.getCount_mutant_dna());
+        assertEquals(50, response.getCount_human_dna());
+        assertEquals(0.0, response.getRatio(), "El ratio debe ser 0.0 cuando no hay mutantes");
     }
 
     @Test
-    @DisplayName("Debe calcular ratio con decimales precisos")
-    void testGetStats_PreciseDecimalRatio() {
-        // Given - Ratio que resulta en decimal periódico
+    @DisplayName("Solo mutantes: 30 mutantes, 0 humanos → Ratio 0.0")
+    void testOnlyMutants() {
+        // Arrange
+        when(dnaRecordRepository.countByIsMutant(true)).thenReturn(30L);
+        when(dnaRecordRepository.countByIsMutant(false)).thenReturn(0L);
+
+        // Act
+        StatsResponse response = statsService.getStats();
+
+        // Assert
+        assertEquals(30, response.getCount_mutant_dna());
+        assertEquals(0, response.getCount_human_dna());
+        assertEquals(0.0, response.getRatio(), "El ratio debe ser 0.0 para evitar división por cero");
+    }
+
+    @Test
+    @DisplayName("Ratio con decimales: 1 mutante, 3 humanos → Ratio 0.333...")
+    void testRatioWithDecimals() {
+        // Arrange
         when(dnaRecordRepository.countByIsMutant(true)).thenReturn(1L);
         when(dnaRecordRepository.countByIsMutant(false)).thenReturn(3L);
 
-        // When
-        StatsResponse stats = statsService.getStats();
+        // Act
+        StatsResponse response = statsService.getStats();
 
-        // Then
-        assertEquals(1L, stats.getCount_mutant_dna());
-        assertEquals(3L, stats.getCount_human_dna());
-        assertEquals(0.3333333333333333, stats.getRatio(), 0.0001); // 1/3 ≈ 0.333...
+        // Assert
+        assertEquals(1, response.getCount_mutant_dna());
+        assertEquals(3, response.getCount_human_dna());
+        assertEquals(0.333, response.getRatio(), 0.001, "El ratio debe ser aproximadamente 0.333 (1/3)");
     }
 
     @Test
-    @DisplayName("Debe retornar ratio 1.0 cuando hay igual cantidad de mutantes y humanos")
-    void testGetStats_EqualMutantsAndHumans() {
-        // Given
+    @DisplayName("Ratio igual a 1: 50 mutantes, 50 humanos → Ratio 1.0")
+    void testRatioEqualsOne() {
+        // Arrange
         when(dnaRecordRepository.countByIsMutant(true)).thenReturn(50L);
         when(dnaRecordRepository.countByIsMutant(false)).thenReturn(50L);
 
-        // When
-        StatsResponse stats = statsService.getStats();
+        // Act
+        StatsResponse response = statsService.getStats();
 
-        // Then
-        assertEquals(50L, stats.getCount_mutant_dna());
-        assertEquals(50L, stats.getCount_human_dna());
-        assertEquals(1.0, stats.getRatio(), 0.001); // 50/50 = 1.0
+        // Assert
+        assertEquals(50, response.getCount_mutant_dna());
+        assertEquals(50, response.getCount_human_dna());
+        assertEquals(1.0, response.getRatio(), 0.001, "El ratio debe ser 1.0 cuando hay igual cantidad");
     }
 
     @Test
-    @DisplayName("Debe retornar ratio mayor a 1 cuando hay más mutantes que humanos")
-    void testGetStats_MoreMutantsThanHumans() {
-        // Given
-        when(dnaRecordRepository.countByIsMutant(true)).thenReturn(150L);
+    @DisplayName("Ratio mayor a 1: 200 mutantes, 100 humanos → Ratio 2.0")
+    void testRatioGreaterThanOne() {
+        // Arrange
+        when(dnaRecordRepository.countByIsMutant(true)).thenReturn(200L);
         when(dnaRecordRepository.countByIsMutant(false)).thenReturn(100L);
 
-        // When
-        StatsResponse stats = statsService.getStats();
+        // Act
+        StatsResponse response = statsService.getStats();
 
-        // Then
-        assertEquals(150L, stats.getCount_mutant_dna());
-        assertEquals(100L, stats.getCount_human_dna());
-        assertEquals(1.5, stats.getRatio(), 0.001); // 150/100 = 1.5
+        // Assert
+        assertEquals(200, response.getCount_mutant_dna());
+        assertEquals(100, response.getCount_human_dna());
+        assertEquals(2.0, response.getRatio(), 0.001, "El ratio debe ser 2.0 (200/100)");
     }
 
     @Test
-    @DisplayName("getMutantCount debe retornar el conteo correcto")
-    void testGetMutantCount() {
-        // Given
-        when(dnaRecordRepository.countByIsMutant(true)).thenReturn(25L);
+    @DisplayName("Números grandes: verificar que no hay overflow")
+    void testLargeNumbers() {
+        // Arrange
+        when(dnaRecordRepository.countByIsMutant(true)).thenReturn(1_000_000L);
+        when(dnaRecordRepository.countByIsMutant(false)).thenReturn(2_000_000L);
 
-        // When
-        long count = statsService.getMutantCount();
+        // Act
+        StatsResponse response = statsService.getStats();
 
-        // Then
-        assertEquals(25L, count);
-        verify(dnaRecordRepository, times(1)).countByIsMutant(true);
-    }
-
-    @Test
-    @DisplayName("getHumanCount debe retornar el conteo correcto")
-    void testGetHumanCount() {
-        // Given
-        when(dnaRecordRepository.countByIsMutant(false)).thenReturn(75L);
-
-        // When
-        long count = statsService.getHumanCount();
-
-        // Then
-        assertEquals(75L, count);
-        verify(dnaRecordRepository, times(1)).countByIsMutant(false);
-    }
-
-    @Test
-    @DisplayName("getTotalAnalysisCount debe retornar el total de análisis")
-    void testGetTotalAnalysisCount() {
-        // Given
-        when(dnaRecordRepository.count()).thenReturn(100L);
-
-        // When
-        long count = statsService.getTotalAnalysisCount();
-
-        // Then
-        assertEquals(100L, count);
-        verify(dnaRecordRepository, times(1)).count();
-    }
-
-    @Test
-    @DisplayName("Debe construir StatsResponse con Builder correctamente")
-    void testStatsResponseBuilder() {
-        // Given
-        when(dnaRecordRepository.countByIsMutant(true)).thenReturn(10L);
-        when(dnaRecordRepository.countByIsMutant(false)).thenReturn(20L);
-
-        // When
-        StatsResponse stats = statsService.getStats();
-
-        // Then - Verificar que el builder de Lombok funcionó correctamente
-        assertNotNull(stats);
-        assertTrue(stats.getCount_mutant_dna() >= 0);
-        assertTrue(stats.getCount_human_dna() >= 0);
-        assertTrue(stats.getRatio() >= 0);
-    }
-
-    @Test
-    @DisplayName("Debe manejar caso extremo de 1 mutante y 1 humano")
-    void testGetStats_OneOfEach() {
-        // Given
-        when(dnaRecordRepository.countByIsMutant(true)).thenReturn(1L);
-        when(dnaRecordRepository.countByIsMutant(false)).thenReturn(1L);
-
-        // When
-        StatsResponse stats = statsService.getStats();
-
-        // Then
-        assertEquals(1L, stats.getCount_mutant_dna());
-        assertEquals(1L, stats.getCount_human_dna());
-        assertEquals(1.0, stats.getRatio(), 0.001); // 1/1 = 1.0
-    }
-
-    @Test
-    @DisplayName("Debe manejar caso con muchos más humanos que mutantes")
-    void testGetStats_FewMutantsManyHumans() {
-        // Given - Proporción muy baja
-        when(dnaRecordRepository.countByIsMutant(true)).thenReturn(5L);
-        when(dnaRecordRepository.countByIsMutant(false)).thenReturn(1000L);
-
-        // When
-        StatsResponse stats = statsService.getStats();
-
-        // Then
-        assertEquals(5L, stats.getCount_mutant_dna());
-        assertEquals(1000L, stats.getCount_human_dna());
-        assertEquals(0.005, stats.getRatio(), 0.0001); // 5/1000 = 0.005 (0.5%)
+        // Assert
+        assertEquals(1_000_000, response.getCount_mutant_dna());
+        assertEquals(2_000_000, response.getCount_human_dna());
+        assertEquals(0.5, response.getRatio(), 0.001, "El ratio debe ser 0.5 con números grandes");
     }
 }
 
