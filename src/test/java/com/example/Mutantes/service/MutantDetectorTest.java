@@ -7,357 +7,450 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
- * Suite de tests unitarios para MutantDetector.
+ * Suite completa de pruebas unitarias para MutantDetector.
  *
- * Tests puros sin Spring Boot ni Mocks para máxima velocidad.
- * Instancia directa de la clase para testear el algoritmo puro.
+ * Cobertura de casos:
+ * - Mutantes en todas las direcciones (horizontal, vertical, diagonales)
+ * - Humanos con 0 o 1 secuencia
+ * - Validaciones de entrada (null, vacío, matriz no cuadrada, caracteres inválidos)
+ * - Casos de borde y rendimiento (matrices pequeñas y grandes)
  *
- * Cobertura:
- * - Casos mutantes (horizontal, vertical, diagonales, múltiples)
- * - Casos humanos (sin secuencias, una secuencia exacta)
- * - Validaciones (null, vacío, matriz no cuadrada, caracteres inválidos)
- * - Casos de borde (matrices pequeñas y grandes)
+ * NOTA: No se usan mocks de Spring Boot. Se instancia MutantDetector directamente
+ * para máxima velocidad de ejecución.
  */
-@DisplayName("MutantDetector - Suite Completa de Tests Unitarios")
+@DisplayName("MutantDetector - Suite de Pruebas Unitarias")
 class MutantDetectorTest {
 
     private MutantDetector detector;
 
     @BeforeEach
     void setUp() {
-        // Instancia directa sin Spring para tests rápidos
+        // Instanciar directamente sin Spring para máxima velocidad
         detector = new MutantDetector();
     }
 
-    // ========== CASOS MUTANTES (Debe retornar true) ==========
+    // ==================================================================================
+    // CASOS MUTANTES (Debe retornar true) - Más de 1 secuencia
+    // ==================================================================================
 
     @Test
-    @DisplayName("Debe detectar mutante con secuencia HORIZONTAL")
+    @DisplayName("Mutante: Secuencia horizontal de 4 letras iguales")
     void testMutantHorizontal() {
         String[] dna = {
-                "ATGCGA",
-                "CAGTGC",
-                "TTTTGT",  // Secuencia horizontal de 4 T's
-                "AGAAGG",
-                "CCCCTA",  // Otra secuencia horizontal de 4 C's
-                "TCACTG"
+            "AAAATG",
+            "TGCAGT",
+            "GCTTCC",
+            "CCCCTG",
+            "GTAGTC",
+            "AGTCAC"
         };
-
+        // Tiene 2 secuencias horizontales: fila 0 (AAAA) y fila 3 (CCCC)
         assertTrue(detector.isMutant(dna), "Debe detectar mutante con secuencias horizontales");
     }
 
     @Test
-    @DisplayName("Debe detectar mutante con secuencia VERTICAL")
+    @DisplayName("Mutante: Secuencia vertical de 4 letras iguales")
     void testMutantVertical() {
         String[] dna = {
-                "ATGCGA",
-                "ACGTGC",
-                "ATATGT",
-                "AGAAGG",
-                "CCCCTA",
-                "TCACTG"
+            "ATGCGA",
+            "ATGTGC",
+            "ATATGT",
+            "AGAAGG",
+            "CCCCTA",
+            "TCACTG"
         };
-        // Columna 0: A-A-A-A (primera secuencia)
-        // Hay otra secuencia en fila 4
-
+        // Tiene secuencias verticales en columna 0 (AAAA) y horizontal en fila 4 (CCCC)
         assertTrue(detector.isMutant(dna), "Debe detectar mutante con secuencias verticales");
     }
 
     @Test
-    @DisplayName("Debe detectar mutante con secuencia DIAGONAL PRINCIPAL (↘)")
+    @DisplayName("Mutante: Secuencia en diagonal principal (↘)")
     void testMutantDiagonalPrincipal() {
         String[] dna = {
-                "ATGCGA",
-                "CAGTGC",
-                "TTATGT",
-                "AGTAGG",
-                "CCCCTA",
-                "TCACTG"
+            "ATGCGA",
+            "CAGTGC",
+            "TTATGT",
+            "AGAAGG",
+            "CCCCTA",
+            "TCACTG"
         };
-        // Diagonal: A(0,0) - A(1,1) - A(2,2) - A(3,3)
-        // Y secuencia horizontal en fila 4
-
+        // Tiene diagonal principal (AGGG) y horizontal (CCCC)
         assertTrue(detector.isMutant(dna), "Debe detectar mutante con diagonal principal");
     }
 
     @Test
-    @DisplayName("Debe detectar mutante con secuencia DIAGONAL INVERTIDA (↙)")
+    @DisplayName("Mutante: Secuencia en diagonal invertida (↙)")
     void testMutantDiagonalInvertida() {
         String[] dna = {
-                "ATGCGA",
-                "CAATGC",
-                "TTATGT",
-                "AGAAGG",
-                "CCCCTA",
-                "TCACTG"
+            "ATGCGA",
+            "CAGTTC",
+            "TTATGT",
+            "GGAAGG",
+            "CCCCTA",
+            "TCACTG"
         };
-        // Diagonal invertida desde posición (0,3): G-T-T-A
-        // Y secuencia horizontal en fila 4
-
+        // Tiene diagonal invertida partiendo de [0,3] y horizontal (CCCC)
         assertTrue(detector.isMutant(dna), "Debe detectar mutante con diagonal invertida");
     }
 
     @Test
-    @DisplayName("Debe detectar mutante con MÚLTIPLES SECUENCIAS en distintas direcciones")
+    @DisplayName("Mutante: Múltiples secuencias en diferentes direcciones")
     void testMutantMultipleSequences() {
         String[] dna = {
-                "AAAATG",  // Horizontal: 4 A's
-                "CAGTGC",
-                "TTTTGT",  // Horizontal: 4 T's
-                "AGAAGG",
-                "CCCCTA",  // Horizontal: 4 C's
-                "TCACTG"
+            "AAAATG",
+            "AAGTGC",
+            "AATTGT",
+            "AGAAGG",
+            "CCCCTA",
+            "TCACTG"
         };
-
+        // Tiene múltiples secuencias: horizontal (AAAA), vertical (AAAA), diagonal, etc.
         assertTrue(detector.isMutant(dna), "Debe detectar mutante con múltiples secuencias");
     }
 
     @Test
-    @DisplayName("Debe detectar mutante en matriz 6x6 - CASO EJEMPLO DEL EXAMEN")
-    void testMutantExampleFromExam() {
+    @DisplayName("Mutante: Exactamente 2 secuencias (caso límite)")
+    void testMutantExactlyTwoSequences() {
         String[] dna = {
-                "ATGCGA",
-                "CAGTGC",
-                "TTATGT",
-                "AGAAGG",
-                "CCCCTA",
-                "TCACTG"
+            "AAAATG",
+            "TGCAGT",
+            "GCTTCC",
+            "TTTTTG",
+            "GTAGTC",
+            "AGTCAC"
         };
-
-        assertTrue(detector.isMutant(dna), "Debe detectar el caso ejemplo del examen como mutante");
+        // Exactamente 2 secuencias: fila 0 (AAAA) y fila 3 (TTTT)
+        assertTrue(detector.isMutant(dna), "Debe detectar mutante con exactamente 2 secuencias");
     }
 
-    // ========== CASOS HUMANOS (Debe retornar false) ==========
+    // ==================================================================================
+    // CASOS HUMANOS (Debe retornar false) - 0 o 1 secuencia
+    // ==================================================================================
 
     @Test
-    @DisplayName("Debe retornar false cuando NO hay ninguna secuencia")
+    @DisplayName("Humano: Sin ninguna secuencia de 4 letras iguales")
     void testHumanNoSequence() {
         String[] dna = {
-                "ATGCGA",
-                "CAGTGC",
-                "TTATTT",
-                "AGACGG",
-                "GCGTCA",
-                "TCACTG"
+            "ATGCGA",
+            "CAGTGC",
+            "TTATTT",
+            "AGACGG",
+            "GCGTCA",
+            "TCACTG"
         };
-
-        assertFalse(detector.isMutant(dna), "Debe retornar false cuando no hay secuencias mutantes");
+        // No tiene ninguna secuencia de 4 letras iguales consecutivas
+        assertFalse(detector.isMutant(dna), "No debe detectar mutante sin secuencias");
     }
 
     @Test
-    @DisplayName("Debe retornar false cuando hay EXACTAMENTE UNA secuencia (CRÍTICO: 1 secuencia = Humano)")
+    @DisplayName("Humano: Exactamente UNA secuencia (CRÍTICO: 1 secuencia = Humano)")
     void testHumanOneSequence() {
         String[] dna = {
-                "AAAATG",  // Solo UNA secuencia de 4 A's
-                "CAGTGC",
-                "TTATGT",
-                "AGACGG",
-                "GCGTCA",
-                "TCACTG"
+            "AAAATG",
+            "TGCAGT",
+            "GCTTCC",
+            "TTTAGG",
+            "GTAGTC",
+            "AGTCAC"
         };
-
-        assertFalse(detector.isMutant(dna), "CRÍTICO: Una sola secuencia significa HUMANO (necesita >1 para ser mutante)");
+        // Solo tiene 1 secuencia horizontal en fila 0 (AAAA)
+        // CRÍTICO: Con 1 sola secuencia debe ser considerado HUMANO
+        assertFalse(detector.isMutant(dna), "Con UNA secuencia debe ser HUMANO, no mutante");
     }
 
     @Test
-    @DisplayName("Debe retornar false cuando las secuencias tienen solo 3 caracteres iguales")
-    void testHumanSequenceOfThree() {
+    @DisplayName("Humano: Secuencia de solo 3 letras consecutivas (insuficiente)")
+    void testHumanThreeConsecutive() {
         String[] dna = {
-                "AAATGA",  // Solo 3 A's (no es secuencia válida)
-                "CAGTGC",
-                "TTATGT",
-                "AGACGG",
-                "GCGTCA",
-                "TCACTG"
+            "AAATGA",
+            "TGCAGT",
+            "GCTTCC",
+            "TTTAGG",
+            "GTAGTC",
+            "AGTCAC"
         };
-
-        assertFalse(detector.isMutant(dna), "Secuencias de 3 caracteres no cuentan");
+        // Tiene AAA (3 letras) pero no AAAA (4 letras)
+        assertFalse(detector.isMutant(dna), "Secuencia de 3 letras es insuficiente");
     }
 
-    // ========== CASOS DE VALIDACIÓN ==========
+    // ==================================================================================
+    // CASOS DE VALIDACIÓN (Debe retornar false o lanzar excepción)
+    // ==================================================================================
 
     @Test
-    @DisplayName("Debe retornar false cuando el DNA es NULL")
+    @DisplayName("Validación: ADN null debe retornar false")
     void testNullDna() {
-        assertFalse(detector.isMutant(null), "DNA null debe retornar false (fail fast)");
+        assertFalse(detector.isMutant(null), "ADN null debe retornar false");
     }
 
     @Test
-    @DisplayName("Debe retornar false cuando el DNA está VACÍO")
+    @DisplayName("Validación: Array vacío debe retornar false")
     void testEmptyDna() {
-        String[] emptyDna = {};
-        assertFalse(detector.isMutant(emptyDna), "DNA vacío debe retornar false");
+        String[] dna = {};
+        assertFalse(detector.isMutant(dna), "Array vacío debe retornar false");
     }
 
     @Test
-    @DisplayName("Debe lanzar excepción cuando la matriz NO es cuadrada (NxM)")
+    @DisplayName("Validación: Matriz no cuadrada (NxM) debe lanzar excepción")
     void testNxM() {
-        String[] nonSquareDna = {
-                "ATGC",
-                "CAGTG",   // Esta fila tiene 5 caracteres (4x5 no es cuadrada)
-                "TTAT",
-                "AGAA"
+        String[] dna = {
+            "ATGCGA",
+            "CAGTGC",
+            "TTAT",      // Fila más corta
+            "AGAAGG",
+            "CCCCTA",
+            "TCACTG"
         };
 
-        assertThrows(IllegalArgumentException.class,
-                () -> detector.isMutant(nonSquareDna),
-                "Debe lanzar excepción cuando la matriz no es cuadrada");
+        IllegalArgumentException exception = assertThrows(
+            IllegalArgumentException.class,
+            () -> detector.isMutant(dna),
+            "Matriz no cuadrada debe lanzar IllegalArgumentException"
+        );
+
+        assertTrue(exception.getMessage().contains("cuadrada"),
+            "El mensaje debe indicar que la matriz debe ser cuadrada");
     }
 
     @Test
-    @DisplayName("Debe lanzar excepción cuando hay caracteres INVÁLIDOS")
+    @DisplayName("Validación: Caracteres inválidos (no A,T,C,G) debe lanzar excepción")
     void testInvalidData() {
-        String[] invalidDna = {
-                "ATGC",
-                "CXGT",  // 'X' es inválido
-                "TTAT",
-                "AGAA"
+        String[] dna = {
+            "ATGCGA",
+            "CAGTGC",
+            "TBATGT",  // Contiene 'B' (inválido)
+            "AGAAGG",
+            "CCCCTA",
+            "TCACTG"
         };
 
-        assertThrows(IllegalArgumentException.class,
-                () -> detector.isMutant(invalidDna),
-                "Debe lanzar excepción con caracteres inválidos");
+        IllegalArgumentException exception = assertThrows(
+            IllegalArgumentException.class,
+            () -> detector.isMutant(dna),
+            "Caracteres inválidos deben lanzar IllegalArgumentException"
+        );
+
+        assertTrue(exception.getMessage().contains("inválido") || exception.getMessage().contains("invalido"),
+            "El mensaje debe indicar caracter inválido");
     }
 
     @Test
-    @DisplayName("Debe lanzar excepción cuando una fila es NULL")
+    @DisplayName("Validación: Array con fila null debe lanzar excepción")
     void testNullRow() {
-        String[] dnaWithNullRow = {
-                "ATGC",
-                null,     // Fila null
-                "TTAT",
-                "AGAA"
+        String[] dna = {
+            "ATGCGA",
+            "CAGTGC",
+            null,       // Fila null
+            "AGAAGG",
+            "CCCCTA",
+            "TCACTG"
         };
 
-        assertThrows(IllegalArgumentException.class,
-                () -> detector.isMutant(dnaWithNullRow),
-                "Debe lanzar excepción cuando hay una fila null");
+        assertThrows(
+            IllegalArgumentException.class,
+            () -> detector.isMutant(dna),
+            "Array con fila null debe lanzar IllegalArgumentException"
+        );
     }
 
     @Test
-    @DisplayName("Debe rechazar letras MINÚSCULAS")
-    void testLowercaseCharacters() {
-        String[] lowercaseDna = {
-                "atgc",  // Minúsculas no permitidas
-                "CAGT",
-                "TTAT",
-                "AGAA"
+    @DisplayName("Validación: Filas con diferente longitud debe lanzar excepción")
+    void testDifferentRowLengths() {
+        String[] dna = {
+            "ATGC",
+            "CAGT",
+            "TTATGTAA",  // Fila más larga
+            "AGAA"
         };
 
-        assertThrows(IllegalArgumentException.class,
-                () -> detector.isMutant(lowercaseDna),
-                "Debe rechazar caracteres en minúscula");
+        assertThrows(
+            IllegalArgumentException.class,
+            () -> detector.isMutant(dna),
+            "Filas de diferente longitud deben lanzar IllegalArgumentException"
+        );
     }
 
-    // ========== CASOS DE BORDE Y RENDIMIENTO ==========
+    // ==================================================================================
+    // CASOS DE BORDE Y RENDIMIENTO
+    // ==================================================================================
 
     @Test
-    @DisplayName("Debe funcionar con matriz MÍNIMA 4x4 - Mutante")
-    void testSmallMatrixMutant() {
-        String[] dna4x4 = {
-                "AAAA",  // Secuencia horizontal
-                "AAAA",  // Otra secuencia horizontal
-                "TGCA",
-                "CGTA"
+    @DisplayName("Borde: Matriz 4x4 (tamaño mínimo posible)")
+    void testSmallMatrix() {
+        String[] dna = {
+            "AAAA",
+            "TTTT",
+            "CCCC",
+            "GGGG"
         };
-
-        assertTrue(detector.isMutant(dna4x4), "Debe detectar mutante en matriz 4x4");
+        // Matriz mínima con múltiples secuencias horizontales
+        assertTrue(detector.isMutant(dna), "Debe funcionar con matriz 4x4");
     }
 
     @Test
-    @DisplayName("Debe funcionar con matriz MÍNIMA 4x4 - Humano")
+    @DisplayName("Borde: Matriz 4x4 sin mutante")
     void testSmallMatrixHuman() {
-        String[] dna4x4 = {
-                "ATGC",
-                "CAGT",
-                "TGCA",
-                "CGTA"
+        String[] dna = {
+            "ATCG",
+            "TGCA",
+            "CGAT",
+            "GATC"
         };
-
-        assertFalse(detector.isMutant(dna4x4), "Debe retornar false cuando no hay secuencias en 4x4");
+        // Matriz mínima sin secuencias
+        assertFalse(detector.isMutant(dna), "Debe identificar humano en matriz 4x4");
     }
 
     @Test
-    @DisplayName("Debe manejar matriz GRANDE 100x100 sin StackOverflow")
+    @DisplayName("Rendimiento: Matriz 100x100 (verificar que no haya StackOverflow)")
     void testLargeMatrix() {
         // Generar matriz 100x100 programáticamente
         int size = 100;
-        String[] largeDna = new String[size];
+        String[] dna = new String[size];
 
-        // Crear filas con patrón alternado para evitar secuencias mutantes
+        // Crear patrón que alterne y tenga algunas secuencias
         for (int i = 0; i < size; i++) {
             StringBuilder row = new StringBuilder();
             for (int j = 0; j < size; j++) {
-                // Patrón: A-T-C-G repetido para evitar secuencias
-                char[] bases = {'A', 'T', 'C', 'G'};
-                row.append(bases[(i + j) % 4]);
-            }
-            largeDna[i] = row.toString();
-        }
-
-        // Solo verificamos que NO lance StackOverflowError
-        assertDoesNotThrow(() -> detector.isMutant(largeDna),
-                "Debe manejar matrices grandes sin StackOverflow");
-    }
-
-    @Test
-    @DisplayName("Matriz 100x100 con mutante debe detectarlo eficientemente")
-    void testLargeMatrixWithMutant() {
-        int size = 100;
-        String[] largeDna = new String[size];
-
-        for (int i = 0; i < size; i++) {
-            StringBuilder row = new StringBuilder();
-            for (int j = 0; j < size; j++) {
+                // Patrón alternante con algunas secuencias
                 if (i == 0 && j < 4) {
-                    row.append('A');  // Primera secuencia horizontal
-                } else if (i == 1 && j < 4) {
-                    row.append('T');  // Segunda secuencia horizontal
+                    row.append('A'); // Primera fila tiene AAAA al inicio
+                } else if (i == 10 && j < 4) {
+                    row.append('T'); // Fila 10 tiene TTTT al inicio (segunda secuencia)
                 } else {
-                    char[] bases = {'A', 'T', 'C', 'G'};
-                    row.append(bases[(i + j) % 4]);
+                    // Resto es patrón alternante
+                    row.append((i + j) % 2 == 0 ? 'A' : 'T');
                 }
             }
-            largeDna[i] = row.toString();
+            dna[i] = row.toString();
         }
 
-        assertTrue(detector.isMutant(largeDna),
-                "Debe detectar mutante en matriz grande eficientemente");
+        // Debe completar sin StackOverflow y detectar las 2 secuencias
+        assertTrue(detector.isMutant(dna),
+            "Debe procesar matriz 100x100 sin StackOverflow y detectar mutante");
     }
 
     @Test
-    @DisplayName("Matriz 3x3 NO puede tener secuencias de 4")
-    void testTooSmallMatrix() {
-        String[] dna3x3 = {
-                "AAA",
-                "TTT",
-                "CCC"
+    @DisplayName("Rendimiento: Matriz grande sin mutante")
+    void testLargeMatrixHuman() {
+        // Generar matriz 50x50 sin secuencias mutantes
+        int size = 50;
+        String[] dna = new String[size];
+
+        for (int i = 0; i < size; i++) {
+            StringBuilder row = new StringBuilder();
+            for (int j = 0; j < size; j++) {
+                // Patrón que evita 4 letras consecutivas en cualquier dirección
+                // Alternamos en grupos de 3 para romper secuencias
+                if ((i + j) % 6 < 3) {
+                    row.append((j % 3 == 0) ? 'A' : (j % 3 == 1) ? 'T' : 'C');
+                } else {
+                    row.append((j % 3 == 0) ? 'G' : (j % 3 == 1) ? 'C' : 'A');
+                }
+            }
+            dna[i] = row.toString();
+        }
+
+        assertFalse(detector.isMutant(dna),
+            "Debe procesar matriz grande y detectar humano correctamente");
+    }
+
+    @Test
+    @DisplayName("Borde: Matriz 1x1 debe retornar false (muy pequeña)")
+    void testMatrixTooSmall() {
+        String[] dna = {"A"};
+        // Matriz 1x1 no puede tener secuencia de 4
+        assertFalse(detector.isMutant(dna),
+            "Matriz 1x1 no puede ser mutante (necesita al menos 4x4)");
+    }
+
+    @Test
+    @DisplayName("Borde: Todas las letras iguales en matriz 6x6")
+    void testAllSameLetters() {
+        String[] dna = {
+            "AAAAAA",
+            "AAAAAA",
+            "AAAAAA",
+            "AAAAAA",
+            "AAAAAA",
+            "AAAAAA"
+        };
+        // Tiene múltiples secuencias en todas direcciones
+        assertTrue(detector.isMutant(dna),
+            "Matriz con todas letras iguales debe ser mutante");
+    }
+
+    // ==================================================================================
+    // CASOS ADICIONALES PARA COBERTURA COMPLETA
+    // ==================================================================================
+
+    @Test
+    @DisplayName("Edge: Secuencias en las esquinas de la matriz")
+    void testSequencesInCorners() {
+        String[] dna = {
+            "AAAATG",
+            "TGCAGT",
+            "GCTTCC",
+            "CCCCGG",
+            "GTAGTC",
+            "AGTCGG"
+        };
+        // Secuencia en esquina superior izquierda (AAAA en fila 0) y otra en fila 3 (CCCC)
+        assertTrue(detector.isMutant(dna),
+            "Debe detectar secuencias en las esquinas");
+    }
+
+    @Test
+    @DisplayName("Edge: Secuencia diagonal en borde derecho")
+    void testDiagonalAtRightEdge() {
+        String[] dna = {
+            "ATGCGG",
+            "CAGTGG",
+            "TTATGG",
+            "AGAAGG",
+            "CCCCTA",
+            "TCACTG"
+        };
+        // Diagonal invertida en columna 5 (GGGG) y horizontal (CCCC)
+        assertTrue(detector.isMutant(dna),
+            "Debe detectar diagonal en borde derecho");
+    }
+
+    @Test
+    @DisplayName("Validación: Caracteres en minúsculas deben fallar")
+    void testLowercaseCharacters() {
+        String[] dna = {
+            "ATGCga",  // Contiene minúsculas
+            "CAGTGC",
+            "TTATGT",
+            "AGAAGG",
+            "CCCCTA",
+            "TCACTG"
         };
 
-        assertFalse(detector.isMutant(dna3x3),
-                "Matriz 3x3 no puede tener secuencias de 4");
+        assertThrows(
+            IllegalArgumentException.class,
+            () -> detector.isMutant(dna),
+            "Caracteres en minúsculas deben lanzar excepción"
+        );
     }
 
     @Test
-    @DisplayName("Matriz 1x1 debe retornar false")
-    void testSingleCell() {
-        String[] dna1x1 = {"A"};
-
-        assertFalse(detector.isMutant(dna1x1), "Matriz 1x1 debe retornar false");
-    }
-
-    @Test
-    @DisplayName("Todas las bases iguales debe detectar múltiples secuencias")
-    void testAllSameBases() {
-        String[] allSame = {
-                "AAAA",
-                "AAAA",
-                "AAAA",
-                "AAAA"
+    @DisplayName("Edge: Matriz rectangular vertical (más filas que columnas)")
+    void testRectangularVertical() {
+        String[] dna = {
+            "ATGC",
+            "CAGT",
+            "TTAT",
+            "AGAA",
+            "CCCC",
+            "TCAC"
         };
 
-        assertTrue(detector.isMutant(allSame),
-                "Matriz con todas las bases iguales debe tener múltiples secuencias");
+        assertThrows(
+            IllegalArgumentException.class,
+            () -> detector.isMutant(dna),
+            "Matriz rectangular debe lanzar excepción"
+        );
     }
 }
 
